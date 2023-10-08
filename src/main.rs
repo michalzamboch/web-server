@@ -1,7 +1,9 @@
 use std::fs;
 use std::io::prelude::*;
+use std::io::Error;
 use std::net::TcpListener;
 use std::net::TcpStream;
+use std::result::Result;
 
 const HOST: &str = "127.0.0.1";
 const PORT: &str = "8477";
@@ -31,15 +33,18 @@ fn start_connection(listener: TcpListener) {
     for stream in listener.incoming() {
         let _stream = stream.unwrap();
 
-        handle_connection(_stream);
+        match handle_connection(_stream) {
+            Ok(_) => println!("Request successful."),
+            Err(err) => println!("Request failed.\n{}", err),
+        }
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream) -> Result<(), Error> {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
+    stream.read(&mut buffer)?;
 
-    let response_contents = get_response_contents();
+    let response_contents = get_response_content();
 
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
@@ -47,13 +52,15 @@ fn handle_connection(mut stream: TcpStream) {
         response_contents
     );
 
-    stream.write(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
+    stream.write(response.as_bytes())?;
+    stream.flush()?;
+
+    Ok(())
 }
 
-fn get_response_contents() -> String {
+fn get_response_content() -> String {
     match fs::read_to_string("index.html") {
         Ok(msg) => msg,
         Err(_) => TEMP_WEB_PAGE.to_owned(),
-    } 
+    }
 }
